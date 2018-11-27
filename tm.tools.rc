@@ -1,0 +1,47 @@
+#!/bin/bash
+
+#
+# Standard commands for external software:
+#
+# General path to the turbomole directory (unsafe, not tested)
+tm_installpath="/path/is/not/set"
+# If a modular software management is available, use it?
+load_modules="true"
+# For example: On the RWTH cluster Gaussian is loaded via a module system,
+# the names (in correct order) of the modules:
+tm_modules[0]="CHEMISTRY"
+tm_modules[1]="turbomole-smp/7.3.0"
+
+# Options related to use open babel (unused for turbomole)
+obabel_cmd="obabel"
+
+#
+# Default files and suffixes
+#
+# tm_input_suffix="com"
+tm_output_suffix="log"
+
+#
+# Default options for printing (unused for turbomole)
+#
+values_separator=" " # (space separated values)
+output_verbosity=0
+
+#
+# Default values for queueing system submission
+#
+# Select a queueing system (pbs-gen/bsub-rwth) # TODO: bsub-gen
+request_qsys="bsub-rwth"
+# Walltime for remote execution, header line for the queueing system
+requested_walltime="24:00:00"
+# Specify a default value for the memory (MB)
+requested_memory=6000
+# This corresponds to nthreads/NProcShared (etc)
+requested_numCPU=4
+# Account to project (currently only for bsub-rwth)
+bsub_project="rwth0317"
+# Request a machinetype
+bsub_machinetype="smp-bull"
+# Calculations will be submitted to run (hold/keep)
+requested_submit_status="run"
+
