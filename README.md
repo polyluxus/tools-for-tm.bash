@@ -36,4 +36,4 @@ This reposity comes with the following scripts (and files):
 
 All of the scripts come with a `-h` switch to give a summary of the available options.
 
-Martin (0.0.1.dev, 2018-11-XX)
+Martin (0.0.1, 2018-11-27)
