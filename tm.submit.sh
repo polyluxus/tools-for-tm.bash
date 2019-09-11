@@ -1,5 +1,27 @@
 #! /bin/bash
 
+###
+#
+# tools-for-tm.bash -- 
+#   A collection of tools for the help with Turbomole.
+# Copyright (C) 2019 Martin C Schwarzer
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+###
+
+
 # Turbomole submission script
 #
 # You might not want to make modifications here.
@@ -10,10 +32,15 @@
 # The help lines are distributed throughout the script and grepped for
 #
 #hlp   This script will sumbit a Turbomole calculation to the queueing system.
-#hlp   It is designed to work on the RWTH compute cluster in 
-#hlp   combination with the bsub queue.
+#hlp   It is designed to work on the RWTH compute cluster CLAIX18 
+#hlp   in combination with the slurm queueing system.
 #hlp
-#hlp   This software comes with absolutely no warrenty. None. Nada.
+#hlp   tools-for-tm.bash  Copyright (C) 2019  Martin C Schwarzer
+#hlp   This program comes with ABSOLUTELY NO WARRANTY; this is free software, 
+#hlp   and you are welcome to redistribute it under certain conditions; 
+#hlp   please see the license file distributed alongside this repository,
+#hlp   which is available when you type '${0##*/} license',
+#hlp   or at <https://github.com/polyluxus/tools-for-tm.bash>.
 #hlp
 #hlp   Usage: $scriptname [options] [IPUT_FILE]
 #hlp
@@ -203,6 +230,36 @@ write_jobscript ()
         echo "#PBS -W depend=afterok$dependency" >&9
       fi
       echo "jobid=\"\${PBS_JOBID%%.*}\"" >&9
+    elif [[ "$queue" =~ [Ss][Ll][Uu][Rr][Mm] ]] ; then
+      echo "#!/usr/bin/env bash" >&9
+      echo "# Submission script automatically created with $scriptname" >&9
+      cat >&9 <<-EOF
+			#SBATCH --nodes=1
+			#SBATCH --ntasks=1
+			#SBATCH --cpus-per-task=$requested_numCPU
+			#SBATCH --mem-per-cpu=$(( requested_memory / requested_numCPU ))
+			#SBATCH --time=${requested_walltime}
+			#SBATCH --job-name='${jobname}'
+			#SBATCH --mail-type=END,FAIL
+			#SBATCH --output='$submitscript.o%j'
+			#SBATCH --error='$submitscript.e%j'
+			EOF
+      if [[ ! -z $dependency ]] ; then
+        # Dependency is stored in the form ':jobid:jobid:jobid' 
+        # which should be recognised by SLURM
+        echo "#SBATCH --depend=afterok$dependency" >&9
+      fi
+      if [[ "$queue" =~ [Rr][Ww][Tt][Hh] ]]  ; then
+        [[ "$PWD" =~ [Hh][Pp][Cc] ]] && echo "#SBATCH --constraint=hpcwork" >&9
+        echo "#SBATCH --export=NONE" >&9
+        if [[ "$bsub_project" =~ ^(|0|[Dd][Ee][Ff][Aa]?[Uu]?[Ll]?[Tt]?)$ ]] ; then
+          warning "No project selected."
+        else
+          echo "#SBATCH --account=$bsub_project" >&9
+        fi
+      fi
+      echo "jobid=\"\${SLURM_JOB_ID}\"" >&9 
+      local qsys_wrapper="srun"
 
     elif [[ "$queue" =~ [Bb][Ss][Uu][Bb] ]] ; then
       echo "#!/usr/bin/env bash" >&9
@@ -297,11 +354,11 @@ write_jobscript ()
       # source /usr/local_host/etc/init_modules.sh
       cat >&9 <<-EOF
 			module load ${tm_modules[*]} 2>&1
-			# Redirect ecause module logging goes to the error output.
+			# Redirect because module logging goes to the error output.
 			
 			EOF
     else
-      warning "This is uncarted territory, i.e. it is not really implemented."
+      warning "This is uncharted territory, i.e. it is not really implemented."
       [[ -z "$tm_installpath" ]] && fatal "Turbomole path is unset."
       cat >&9 <<-EOF
 			# This is more than just experimental.
@@ -335,11 +392,19 @@ write_jobscript ()
 		echo "Start: \$(date)"
 		cpc   "\$tm_tempdir"  2>&1
 		pushd "\$tm_tempdir"  || exit 1
+		pwd
 		sdg maxcor && kdg maxcor && adg maxcor ${use_maxcor} mb total && sdg maxcor
-		$( printf '"%s" ' "${requested_tm_commandline[@]}" ) &> "$outputfile"
+		EOF
+    if [[ -n $qsys_wrapper ]] ; then
+      echo "$qsys_wrapper $( printf '"%s" ' "${requested_tm_commandline[@]}" ) &> \"$outputfile\"" >&9
+    else
+      echo "$( printf '"%s" ' "${requested_tm_commandline[@]}" ) &> \"$outputfile\"" >&9
+    fi
+    cat >&9 <<-EOF
 		joberror=\$?
 		cpc "\$tm_sourcedir" 2>&1
 		popd || exit 1
+		pwd
 		echo "End:   \$(date)"
 		exit \$joberror
 		EOF
@@ -358,7 +423,10 @@ submit_jobscript_hold ()
       submit_message="
         Submitted as $submit_id.
         Use 'qrls $submit_id' to release the job."
-    elif [[ "$queue" =~ [Bb][Ss][Uu][Bb]-[Rr][Ww][Tt][Hh] ]] ; then
+    elif [[ "$queue" =~ [Ss][Ll][Uu][Rr][Mm] ]] ; then
+      warning "Sorry, not implemented."
+      exit_status=1
+    elif [[ "$queue" =~ [Bb][Ss][Uu][Bb] ]] ; then
       submit_message="$(bsub -H < "$submitscript" 2>&1 )" || exit_status="$?"
     fi
     (( exit_status > 0 )) && warning "Submission went wrong."
@@ -372,7 +440,9 @@ submit_jobscript_keep ()
     message "Created submit script, use"
     if [[ "$queue" =~ [Pp][Bb][Ss] ]] ; then
       message "  qsub $submitscript"
-    elif [[ "$queue" =~ [Bb][Ss][Uu][Bb]-[Rr][Ww][Tt][Hh] ]] ; then
+    elif [[ "$queue" =~ [Ss][Ll][Uu][Rr][Mm] ]] ; then
+      message "  sbatch $submitscript"
+    elif [[ "$queue" =~ [Bb][Ss][Uu][Bb] ]] ; then
       message "  bsub < $submitscript"
     fi
     message "to start the job."
@@ -384,7 +454,9 @@ submit_jobscript_run  ()
     debug "queue=$queue; submitscript=$submitscript"
     if [[ "$queue" =~ [Pp][Bb][Ss] ]] ; then
       submit_message="Submitted as $(qsub "$submitscript")" || exit_status="$?"
-    elif [[ "$queue" =~ [Bb][Ss][Uu][Bb]-[Rr][Ww][Tt][Hh] ]] ; then
+    elif [[ "$queue" =~ [Ss][Ll][Uu][Rr][Mm] ]] ; then
+      submit_message="$(sbatch "$submitscript" 2>&1 )" || exit_status="$?"
+    elif [[ "$queue" =~ [Bb][Ss][Uu][Bb] ]] ; then
       submit_message="$(bsub < "$submitscript" 2>&1 )" || exit_status="$?"
     else
       fatal "Unrecognised queueing system '$queue'."
@@ -496,7 +568,7 @@ process_options ()
                ;;
 
           #hlp     -Q <ARG> Which type of job script should be produced.
-          #hlp              Arguments currently implemented: pbs-gen, bsub-rwth
+          #hlp              Arguments currently implemented: pbs/slurm/bsub and suffixes -gen/-rwth
           #hlp
             Q) request_qsys="$OPTARG" ;;
 
@@ -599,6 +671,17 @@ else
 fi
 
 get_scriptpath_and_source_files || exit 1
+
+if [[ "$1" =~ ^[Ll][Ii][Cc][Ee][Nn][Ss][Ee]$ ]] ; then
+  [[ -r "$scriptpath/LICENSE" ]] || fatal "No license file found. Your copy of the repository might be corrupted."
+  if command -v less &> /dev/null ; then
+    less "$scriptpath/LICENSE"
+  else
+    cat "$scriptpath/LICENSE"
+  fi
+  message "Displayed license and will exit."
+  exit 0
+fi
 
 # Check for settings in three default locations (increasing priority):
 #   install path of the script, user's home directory, current directory
