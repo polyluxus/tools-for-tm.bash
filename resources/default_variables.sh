@@ -13,8 +13,8 @@ fi
 # Generic details about these tools 
 #
 softwarename="tools-for-tm.bash"
-version="0.0.1"
-versiondate="2018-11-27"
+version="0.0.2"
+versiondate="2019-09-11"
 
 #
 # Standard commands for external software:
@@ -48,8 +48,8 @@ output_verbosity=0
 #
 # Default values for queueing system submission
 #
-# Select a queueing system (pbs-gen/bsub-rwth) # TODO: bsub-gen
-request_qsys="bsub-rwth"
+# Select a queueing system (pbs/slurm/bsub & -gen/-rwth) 
+request_qsys="slurm-rwth"
 # Walltime for remote execution, header line for the queueing system
 requested_walltime="24:00:00"
 # Specify a default value for the memory (MB) (It'll be scaled back to include overhead)
