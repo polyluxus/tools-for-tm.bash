@@ -13,8 +13,8 @@ fi
 # Generic details about these tools 
 #
 softwarename="tools-for-tm.bash"
-version="0.0.2"
-versiondate="2019-09-11"
+version="0.0.3"
+versiondate="2019-09-12"
 
 #
 # Standard commands for external software:
@@ -28,7 +28,7 @@ load_modules="true"
 # For example: On the RWTH cluster Turbomole is loaded via a module system,
 # the names (in correct order) of the modules:
 tm_modules[0]="CHEMISTRY"
-tm_modules[1]="turbomole-smp/7.3.0"
+tm_modules[1]="turbomole/7.3.0"
 
 # Options related to use open babel (currently unused for turbomole)
 obabel_cmd="obabel"
