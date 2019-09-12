@@ -56,4 +56,4 @@ See [LICENSE](LICENSE) to see the full text.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-Martin (0.0.2, 2019-09-11)
+Martin (0.0.3, 2019-09-13)

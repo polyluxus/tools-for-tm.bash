@@ -42,7 +42,7 @@
 #hlp   which is available when you type '${0##*/} license',
 #hlp   or at <https://github.com/polyluxus/tools-for-tm.bash>.
 #hlp
-#hlp   Usage: $scriptname [options] [IPUT_FILE]
+#hlp   Usage: $scriptname [options] [TURBOMOLE_COMMANDLINE]
 #hlp
 
 #
@@ -186,9 +186,11 @@ write_jobscript ()
       warning "File will be overwritten."
       # Backup or delete, or overwrite?
     fi
+    debug "Submission script is called '$submitscript'."
     (( ${#requested_tm_commandline[*]} == 0 )) && fatal "No Turbomole commands specified. Abort."
     ### TODO: where does outputfile come from?
     [[ -z $outputfile ]]  && fatal "No outputfile selected. Abort."
+    message "Output will be written to '$outputfile'."
 
     # Open file descriptor 9 for writing
     exec 9> "$submitscript"
@@ -197,8 +199,6 @@ write_jobscript ()
     # therefore the requested_memory needs to be written to the header
     local use_maxcor
     use_maxcor=$(( requested_memory * 75 / 100 ))
-    # Not sure if that works (exclude for now)
-    # (( use_maxcor > 16000 )) && use_maxcor="16000"
     debug "use_maxcor=$use_maxcor" 
   
     message "Request a total memory of $requested_memory MB."
@@ -209,6 +209,7 @@ write_jobscript ()
     else
       debug "Minimal memory requirement met, $suggested_memory MB."
     fi
+    message "Request $requested_numCPU CPU for the calculation."
 
     # Header is different for the queueing systems
     if [[ "$queue" =~ [Pp][Bb][Ss] ]] ; then
@@ -224,7 +225,7 @@ write_jobscript ()
 			#PBS -o $submitscript.o\${PBS_JOBID%%.*}
 			#PBS -e $submitscript.e\${PBS_JOBID%%.*}
 			EOF
-      if [[ ! -z $dependency ]] ; then
+      if [[ -n $dependency ]] ; then
         # Dependency is stored in the form ':jobid:jobid:jobid' 
         # which should be recognised by PBS
         echo "#PBS -W depend=afterok$dependency" >&9
@@ -244,7 +245,7 @@ write_jobscript ()
 			#SBATCH --output='$submitscript.o%j'
 			#SBATCH --error='$submitscript.e%j'
 			EOF
-      if [[ ! -z $dependency ]] ; then
+      if [[ -n $dependency ]] ; then
         # Dependency is stored in the form ':jobid:jobid:jobid' 
         # which should be recognised by SLURM
         echo "#SBATCH --depend=afterok$dependency" >&9
@@ -275,7 +276,7 @@ write_jobscript ()
 			#BSUB -o $submitscript.o%J
 			#BSUB -e $submitscript.e%J
 			EOF
-      if [[ ! -z $dependency ]] ; then
+      if [[ -n $dependency ]] ; then
         # Dependency is stored in the form ':jobid:jobid:jobid' (PBS)
         # and needs to be transformed to LSF compatible format
         debug "Resolving dependencies from '$dependency'"
@@ -383,7 +384,7 @@ write_jobscript ()
 		EOF
 
     # Insert additional environment variables
-    if [[ ! -z "$manual_env_var" ]]; then
+    if [[ -n "$manual_env_var" ]]; then
       echo "export $manual_env_var" >&9
       debug "export $manual_env_var"
     fi
@@ -497,8 +498,6 @@ submit_jobscript ()
 
 process_options ()
 {
-  ##Needs complete rework
-
     #hlp   Options:
     #hlp    
     local OPTIND=1 
@@ -690,7 +689,7 @@ debug "tm_tools_rc_loc=$tm_tools_rc_loc"
 
 # Load custom settings from the rc
 
-if [[ ! -z $tm_tools_rc_loc ]] ; then
+if [[ -n $tm_tools_rc_loc ]] ; then
   #shellcheck source=/home/te768755/devel/tools-for-tm.bash/tm.tools.rc 
   . "$tm_tools_rc_loc"
   message "Configuration file '$tm_tools_rc_loc' applied."
